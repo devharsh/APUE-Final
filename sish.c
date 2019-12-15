@@ -7,8 +7,8 @@ main(int argc, char** argv) {
 	char ch;
 
 	pid_t pid;
-	int status;
-	int is_x_on;
+	int status = 0;
+	int is_x_on = 0;
 
 	if (signal(SIGINT, SIG_IGN) == SIG_ERR) {
 		fprintf(stderr, "signal error: %s\n", strerror(errno));
@@ -35,22 +35,34 @@ main(int argc, char** argv) {
         	}
     	}
 
-	if(is_x_on) {}
 	if(query != NULL) {}
 
 	while (getinput(buf, sizeof(buf))) {
 		buf[strlen(buf) - 1] = '\0';
 
-		if((pid=fork()) == -1) {
-			fprintf(stderr, "shell: can't fork: %s\n",
-					strerror(errno));
+		if(is_x_on) {
+			printf("+%s\n", buf);
+		}
+
+		if(strcmp("echo $$", buf) == 0) {
+			printf("%d\n", (int)getpid());
+			status = 0;
 			continue;
-		} else if (pid == 0) {
-			/* child */
-			execlp(buf, buf, (char *)0);
-			fprintf(stderr, "shell: couldn't exec %s: %s\n", buf,
+		} else if(strcmp("echo $?", buf) == 0) {
+			printf("%d\n", status);
+			status = 0;
+			continue;
+		} else {
+			if((pid=fork()) == -1) {
+				fprintf(stderr, "shell: can't fork: %s\n",
 					strerror(errno));
-			exit(EX_DATAERR);
+				continue;
+			} else if (pid == 0) {
+				execlp(buf, buf, (char *)0);
+				fprintf(stderr, "shell: couldn't exec %s: %s\n", buf,
+					strerror(errno));
+				exit(EX_DATAERR);
+			}
 		}
 
 		if ((pid=waitpid(pid, &status, 0)) < 0)
