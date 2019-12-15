@@ -1,7 +1,5 @@
 #include "sish.h"
 
-static void sig_int();
-
 int
 main(int argc, char** argv) {
 	char buf[1024];
@@ -12,7 +10,7 @@ main(int argc, char** argv) {
 	int status;
 	int is_x_on;
 
-	if (signal(SIGINT, sig_int) == SIG_ERR) {
+	if (signal(SIGINT, SIG_IGN) == SIG_ERR) {
 		fprintf(stderr, "signal error: %s\n", strerror(errno));
 		exit(1);
 	}
@@ -61,9 +59,4 @@ main(int argc, char** argv) {
 	}
 
 	exit(EX_OK);
-}
-
-void
-sig_int() {
-	printf("\nCaught SIGINT!\n");
 }
