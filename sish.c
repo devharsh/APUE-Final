@@ -48,8 +48,86 @@ sish_help() {
         exit(EXIT_FAILURE);
 }
 
+void execute (char *cmd)
+{
+	char* token;
+	char* args[20];
+	char *delim = " \n";
+	int argIndex = 0;
+	
+	for (int i = 0; i < 20; i++)  /* set all pointers NULL */
+            args[i] = NULL;
+
+	for (token = strtok (cmd, delim);        /* parse tokens */
+                token && argIndex + 1 < 20; 
+                token = strtok (NULL, delim)) {
+            args[argIndex++] = token;
+        }
+ 
+   pid_t pid, status;
+    pid = fork ();
+
+    if (pid < 0) {
+        perror ("fork");
+        return;
+    }
+    else if (pid > 0) {
+        while (wait (&status) != pid)
+            continue;
+    }
+    else if (pid == 0) {
+        int idx = 0,
+            fd;
+        while (args[idx]) {   /* parse args for '<' or '>' and filename */
+            if (*args[idx] == '>' && args[idx+1]) {
+                if ((fd = open (args[idx+1], 
+                            O_WRONLY | O_CREAT, 
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
+                    perror (args[idx+1]);
+                    exit (EXIT_FAILURE);
+                }
+                dup2 (fd, 1);
+                dup2 (fd, 2);
+                close (fd);
+                while (args[idx]) {
+                    args[idx] = args[idx+2];
+                    idx++; 
+                }
+                break;
+            }
+            else if (*args[idx] == '<' && args[idx+1]) {
+                if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
+                    perror (args[idx+1]);
+                    exit (EXIT_FAILURE);
+                }
+                dup2 (fd, 0);
+                close (fd);
+                while (args[idx]) {
+                    args[idx] = args[idx+2];
+                    idx++; 
+                }
+                break;
+            }
+            idx++;
+        }
+        if (execvp (args[0], args) == -1) {
+            perror ("execvp");
+        }
+        _exit (EXIT_FAILURE);   /* must _exit after execvp return, otherwise */
+    }                           /* any atext calls invoke undefine behavior  */
+}
+
 static int command(int input, int first, int last)
 {
+	if(is_x_on) {
+		if(args[0] != NULL) {
+			fprintf(stderr, "+ %s", args[0]);
+			if(args[1] != NULL) {
+				fprintf(stderr, " %s", args[1]);
+			}
+			fprintf(stderr, "\n"); 
+		}
+	}
  
 	/* shell built-in calls */
 	if (strcmp(args[0], "exit") == 0) {
@@ -92,15 +170,6 @@ static int command(int input, int first, int last)
                         dup2( input, STDIN_FILENO );
                 }
 		
-		
-		/*	
-		for(int i = 0; i < 512; i++) {
-			if(args[i] != NULL) {
-				printf("args[%d] = %s\n", i, args[i]);
-			}
-		}
-		*/
-
                 execvp(args[0], args);
 		fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
 		exit(EX_DATAERR);
@@ -177,13 +246,16 @@ main(int argc, char** argv) {
                 	exit(EX_DATAERR);
 		}
 
-		if(is_x_on) {
-			fprintf(stderr, "+%s", cmd);
+                char* next = strchr(cmd, '|');
+		char* read = strstr(cmd, "<");
+		char* write = strstr(cmd, ">");
+		char* append = strstr(cmd, ">>");
+		if(write) {
+			execute(cmd);
+			continue;
 		}
 
-                char* next = strchr(cmd, '|');
-
-                while (next != NULL) {
+		while (next != NULL) {
                 	*next = '\0';
 			split(cmd);
         		if (args[0] != NULL) {
