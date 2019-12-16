@@ -64,57 +64,55 @@ void execute (char *cmd)
             args[argIndex++] = token;
         }
  
-   pid_t pid, status;
-    pid = fork ();
+	pid_t pid, status;
+	pid = fork ();
 
-    if (pid < 0) {
-        perror ("fork");
-        return;
-    }
-    else if (pid > 0) {
-        while (wait (&status) != pid)
-            continue;
-    }
-    else if (pid == 0) {
-        int idx = 0,
-            fd;
-        while (args[idx]) {   /* parse args for '<' or '>' and filename */
-            if (*args[idx] == '>' && args[idx+1]) {
-                if ((fd = open (args[idx+1], 
-                            O_WRONLY | O_CREAT, 
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
-                    perror (args[idx+1]);
-                    exit (EXIT_FAILURE);
-                }
-                dup2 (fd, 1);
-                dup2 (fd, 2);
-                close (fd);
-                while (args[idx]) {
-                    args[idx] = args[idx+2];
-                    idx++; 
-                }
-                break;
-            }
-            else if (*args[idx] == '<' && args[idx+1]) {
-                if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
-                    perror (args[idx+1]);
-                    exit (EXIT_FAILURE);
-                }
-                dup2 (fd, 0);
-                close (fd);
-                while (args[idx]) {
-                    args[idx] = args[idx+2];
-                    idx++; 
-                }
-                break;
-            }
-            idx++;
-        }
-        if (execvp (args[0], args) == -1) {
-            perror ("execvp");
-        }
-        _exit (EXIT_FAILURE);   /* must _exit after execvp return, otherwise */
-    }                           /* any atext calls invoke undefine behavior  */
+    	if (pid < 0) {
+        	perror ("fork");
+        	return;
+    	} else if (pid > 0) {
+        	while (wait (&status) != pid) {
+            		continue;
+		}
+    	} else if (pid == 0) {
+        	int idx = 0,
+            		fd;
+        	while (args[idx]) {   /* parse args for '<' or '>' and filename */
+            		if (*args[idx] == '>' && args[idx+1]) {
+                		if ((fd = open (args[idx+1], 
+                            		O_WRONLY | O_CREAT, 
+                            		S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
+                    			perror (args[idx+1]);
+                    			exit (EXIT_FAILURE);
+                		}
+                		dup2 (fd, 1);
+                		dup2 (fd, 2);
+                		close (fd);
+                		while (args[idx]) {
+                    			args[idx] = args[idx+2];
+                    			idx++; 
+                		}
+                		break;
+            		} else if (*args[idx] == '<' && args[idx+1]) {
+                		if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
+                    			perror (args[idx+1]);
+                    			exit (EXIT_FAILURE);
+                		}
+                		dup2 (fd, 0);
+                		close (fd);
+                		while (args[idx]) {
+                    			args[idx] = args[idx+2];
+                    			idx++; 
+                		}
+                		break;
+            		}
+            		idx++;
+        	}
+        	if (execvp (args[0], args) == -1) {
+            		perror ("execvp");
+        	}
+        	_exit (EXIT_FAILURE);   /* must _exit after execvp return, otherwise */
+    	}                           /* any atext calls invoke undefine behavior  */
 }
 
 static int command(int input, int first, int last)
@@ -250,7 +248,8 @@ main(int argc, char** argv) {
 		char* read = strstr(cmd, "<");
 		char* write = strstr(cmd, ">");
 		char* append = strstr(cmd, ">>");
-		if(write) {
+		
+		if(read || write || append) {
 			execute(cmd);
 			continue;
 		}
