@@ -30,6 +30,7 @@ char* buf_cmd;
 char ch;
 
 int status = 0;
+int is_c_on = 0;
 int is_x_on = 0;
 int data = 0;
 int cnt = 0;
@@ -64,9 +65,15 @@ static int command(int input, int first, int last)
                         dup2( input, STDIN_FILENO );
                 }
 
+		for(int i = 0; i < 512; i++) {
+			if(args[i] != NULL) {
+				printf("args[%d] = %s\n", i, args[i]);
+			}
+		}
+
                 execvp(args[0], args);
-                fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
-                exit(EX_DATAERR);
+		fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
+		exit(EX_DATAERR);
         }
 
         if (input != 0)
@@ -80,65 +87,82 @@ static int command(int input, int first, int last)
         return pipes[0];
 }
 
-int main(int argc, char** argv)
-{
-        if (signal(SIGINT, SIG_IGN) == SIG_ERR) {
-                fprintf(stderr, "signal error: %s\n", strerror(errno));
-                exit(1);
-        }
+int 
+main(int argc, char** argv) {
+	if (signal(SIGINT, SIG_IGN) == SIG_ERR) {
+		fprintf(stderr, "signal error: %s\n", strerror(errno));
+		exit(1);
+	}
 
-        while ((ch = getopt(argc, argv, "c:x")) != -1) {
-                switch (ch) {
-                        case 'x':
-                                is_x_on = 1;
-                                                break;
-                        case 'c':
-                                if (optarg)
-                                        query = optarg;
-                                                else
-                                                        sish_help();
-                                break;
-                                        default:
-                                                sish_help();
-                                break;
-        }
-    }
+	while ((ch = getopt(argc, argv, "c:x")) != -1) {
+		switch (ch) {
+			case 'x':
+				is_x_on = 1;
+				break;
+			case 'c':
+				if (optarg) {
+					query = optarg;
+					is_c_on = 1;
+				} else {
+					sish_help();
+					exit(0);
+				}
+				break;
+			default:
+				break;
+			}
+	}
 
-        while (1) {
-                printf("sish$ ");
-                fflush(NULL);
+	while (1) {
+		char* cmd;
+		int input = 0;
+		int first = 1;
 
-                if (!fgets(line, 1024, stdin))
-                        return 0;
+		if(!is_c_on) {
+			printf("sish$ ");
+                	fflush(NULL);
 
-                int input = 0;
-                int first = 1;
+                	if (!fgets(line, 1024, stdin))
+                        	return 0;
 
-                char* cmd = line;
-                printf("line = %s", line);
-                if(strcmp("echo $$\n", line) == 0) {
-                        printf("%d\n", (int)getpid());
-                        status = 0;
-                        continue;
-                } else if(strcmp("echo $?\n", line) == 0) {
-                        printf("%d\n", status);
-                        status = 0;
-                        continue;
-                } else {
-                        char* next = strchr(cmd, '|');
+			cmd = line;
+		}
 
-                        while (next != NULL) {
-                                *next = '\0';
-                                input = run(cmd, input, first, 0);
+		if(is_c_on) {
+			args[0] = query;
+			args[1] = NULL;
+			execvp(args[0], args);
+                	fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
+                	exit(EX_DATAERR);
+		}
 
-                                cmd = next + 1;
-                                next = strchr(cmd, '|');
-                                first = 0;
-                        }
-                        input = run(cmd, input, first, 1);
-                        for (int i = 0; i < n; ++i)
-                                wait(NULL);
-                }
+		if(is_x_on) {
+			printf("+%s", cmd);
+		}
+
+		if(strcmp("echo $$\n", cmd) == 0) {
+			printf("%d\n", (int)getpid());
+			status = 0;
+			continue;
+		} else if(strcmp("echo $?\n", cmd) == 0) {
+			printf("%d\n", status);
+			status = 0;
+			continue;
+		} else {
+                	char* next = strchr(cmd, '|');
+
+                	while (next != NULL) {
+                        	*next = '\0';
+                        	input = run(cmd, input, first, 0);
+
+                        	cmd = next + 1;
+                        	next = strchr(cmd, '|');
+                        	first = 0;
+                	}
+                	input = run(cmd, input, first, 1);
+                	for (int i = 0; i < n; ++i)
+                        	wait(NULL);
+		}
                 n = 0;
         }
         return 0;
@@ -184,5 +208,4 @@ static void split(char* cmd)
 
         args[i] = NULL;
 }
-
 
