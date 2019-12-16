@@ -102,46 +102,46 @@ void execute (char *cmd)
             			continue;
 			}
     		} else if (pid == 0) {
-        		int idx = 0,
-            			fd;
+        		int idx = 0, fd0, fd1, fd2;
+
         		while (args[idx]) {   
             			if (*args[idx] == '>' && args[idx+1]) {
-                			if ((fd = open (args[idx+1], 
+                			if ((fd1 = open (args[idx+1], 
                             			O_WRONLY | O_CREAT, 
                             			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
                     				perror (args[idx+1]);
                     				exit (EXIT_FAILURE);
                 			}
-                			dup2 (fd, 1);
-                			dup2 (fd, 2);
-                			close (fd);
+                			dup2 (fd1, 1);
+                			dup2 (fd1, 2);
+                			close (fd1);
                 			while (args[idx]) {
                     				args[idx] = args[idx+2];
                     				idx++; 
                 			}
                 			break;
             			} else if (*args[idx] == '^' && args[idx+1]) {
-                			if ((fd = open (args[idx+1], 
+                			if ((fd2 = open (args[idx+1], 
                             			O_WRONLY | O_APPEND, 
                             			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
                     				perror (args[idx+1]);
                     				exit (EXIT_FAILURE);
                 			}
-                			dup2 (fd, 1);
-                			dup2 (fd, 2);
-                			close (fd);
+                			dup2 (fd2, 1);
+                			dup2 (fd2, 2);
+                			close (fd2);
                 			while (args[idx]) {
                     				args[idx] = args[idx+2];
                     				idx++; 
                 			}
                 			break;
 				} else if (*args[idx] == '<' && args[idx+1]) {
-                			if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
+                			if ((fd0 = open (args[idx+1], O_RDONLY)) == -1) {
                     				perror (args[idx+1]);
                     				exit (EXIT_FAILURE);
                 			}
-                			dup2 (fd, 0);
-                			close (fd);
+                			dup2 (fd0, 0);
+                			close (fd0);
                 			while (args[idx]) {
                     				args[idx] = args[idx+2];
                     				idx++; 
