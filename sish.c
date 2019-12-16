@@ -55,10 +55,11 @@ void execute (char *cmd)
 	char *delim = " \n";
 	int argIndex = 0;
 	
-	for (int i = 0; i < 20; i++)  /* set all pointers NULL */
+	for (int i = 0; i < 20; i++) {
             args[i] = NULL;
+	}
 
-	for (token = strtok (cmd, delim);        /* parse tokens */
+	for (token = strtok (cmd, delim);
                 token && argIndex + 1 < 20; 
                 token = strtok (NULL, delim)) {
             args[argIndex++] = token;
@@ -77,7 +78,7 @@ void execute (char *cmd)
     	} else if (pid == 0) {
         	int idx = 0,
             		fd;
-        	while (args[idx]) {   /* parse args for '<' or '>' and filename */
+        	while (args[idx]) {   
             		if (*args[idx] == '>' && args[idx+1]) {
                 		if ((fd = open (args[idx+1], 
                             		O_WRONLY | O_CREAT, 
@@ -93,7 +94,22 @@ void execute (char *cmd)
                     			idx++; 
                 		}
                 		break;
-            		} else if (*args[idx] == '<' && args[idx+1]) {
+            		} else if (*args[idx] == '^' && args[idx+1]) {
+                		if ((fd = open (args[idx+1], 
+                            		O_WRONLY | O_APPEND, 
+                            		S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
+                    			perror (args[idx+1]);
+                    			exit (EXIT_FAILURE);
+                		}
+                		dup2 (fd, 1);
+                		dup2 (fd, 2);
+                		close (fd);
+                		while (args[idx]) {
+                    			args[idx] = args[idx+2];
+                    			idx++; 
+                		}
+                		break;
+			} else if (*args[idx] == '<' && args[idx+1]) {
                 		if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
                     			perror (args[idx+1]);
                     			exit (EXIT_FAILURE);
@@ -111,8 +127,8 @@ void execute (char *cmd)
         	if (execvp (args[0], args) == -1) {
             		perror ("execvp");
         	}
-        	_exit (EXIT_FAILURE);   /* must _exit after execvp return, otherwise */
-    	}                           /* any atext calls invoke undefine behavior  */
+        	_exit (EXIT_FAILURE); 
+    	}                           
 }
 
 static int command(int input, int first, int last)
@@ -248,7 +264,18 @@ main(int argc, char** argv) {
 		char* read = strstr(cmd, "<");
 		char* write = strstr(cmd, ">");
 		char* append = strstr(cmd, ">>");
-		
+
+		int j_second = 0;
+		for(int j=0; j<strlen(cmd); j++) {
+			if(j_second) {
+				cmd[j] = '^';
+				break;
+			} else if(cmd[j] == '>') {
+				cmd[j] = ' ';
+				j_second = 1;
+			}
+		}
+
 		if(read || write || append) {
 			execute(cmd);
 			continue;
@@ -317,4 +344,3 @@ static void split(char* cmd)
 	}
 	args[i] = NULL;
 }
-
