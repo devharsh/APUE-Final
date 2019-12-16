@@ -177,7 +177,6 @@ static int command(int input, int first, int last)
 			fprintf(stderr, "\n"); 
 		}
 	}
- 
 	/* shell built-in calls */
 	if (strcmp(args[0], "exit") == 0) {
 		exit(0);
@@ -217,7 +216,6 @@ static int command(int input, int first, int last)
                		} else {
                        		dup2( input, STDIN_FILENO );
                		}
-		
                		execvp(args[0], args);
 			fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
 			exit(EX_DATAERR);
@@ -281,19 +279,12 @@ main(int argc, char** argv) {
 		if(!is_c_on) {
 			printf("sish$ ");
                 	fflush(NULL);
-
-                	if (!fgets(line, 1024, stdin))
-                        	return 0;
-
+                	if (!fgets(line, 1024, stdin)) {
+				return 0;
+			}
 			cmd = line;
-		}
-
-		if(is_c_on) {
-			args[0] = query;
-			args[1] = NULL;
-			execvp(args[0], args);
-                	fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
-                	exit(EX_DATAERR);
+		} else {
+			cmd = query;
 		}
 
                 char* next = strchr(cmd, '|');
@@ -328,12 +319,10 @@ main(int argc, char** argv) {
         		} else {
 				input = 0;
 			}
-
                        	cmd = next + 1;
                        	next = strchr(cmd, '|');
                        	first = 0;
                	}
-
 		split(cmd);
         	if (args[0] != NULL) {
 			n += 1;
@@ -341,24 +330,25 @@ main(int argc, char** argv) {
         	} else {
 			input = 0;
 		}
-
                	if(!is_bg_proc) {
-		for (int i = 0; i < n; ++i)
-                       	wait(NULL);
+			for (int i = 0; i < n; ++i)
+                       		wait(NULL);
 		}
                 n = 0;
+		if(is_c_on) {
+			break;
+		}
         }
         return 0;
 }
 
 static void split(char* cmd)
 {
-        while (isspace(*cmd)) {
+	while (isspace(*cmd)) {
                 cmd++;
         }
         char* next = strchr(cmd, ' ');
         int i = 0;
-
         while(next != NULL) {
                 next[0] = '\0';
                 args[i] = cmd;
@@ -369,7 +359,7 @@ static void split(char* cmd)
                 }
                 next = strchr(cmd, ' ');
         }
-
+	cmd[strlen(cmd)] = '\n';
         if (cmd[0] != '\0') {
                 args[i] = cmd;
                 next = strchr(cmd, '\n');
