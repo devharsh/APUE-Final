@@ -17,14 +17,14 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int run(char* cmd, int input, int first, int last);
 static char line[1024];
-static int n = 0; /* number of calls to 'command' */
+static int n = 0;
 static void split(char* cmd);
 
 static char* args[512];
 pid_t pid;
 char buf[1024];
+char shell_buf[1024];
 char* query = NULL;
 char* buf_cmd;
 char ch;
@@ -49,7 +49,31 @@ sish_help() {
 
 static int command(int input, int first, int last)
 {
-        int pipes[2];
+ 
+	/* shell built-in calls */
+                if (strcmp(args[0], "echo") == 0) {
+                        if(strcmp(args[1], "$$") == 0) {
+                                printf("%d\n", (int)getpid());
+                        } else if(strcmp(args[1], "$?") == 0) {
+                                printf("%d\n", status);
+                        } else {
+                                printf("%s\n", args[1]);
+                        }
+                } else if (strcmp(args[0], "cd") == 0) {
+                        if(args[1]==NULL) {
+                                printf("%s\n", getenv("HOME"));
+                                if(chdir(getenv("HOME")) == -1) {
+                                        fprintf(stderr, "getenv error: %s\n", strerror(errno));
+                                        exit(1);
+                                }
+                        } else {
+                                if(chdir(args[1]) == -1) {
+                                        fprintf(stderr, "chdir error: %s\n", strerror(errno));
+                                        exit(1);
+                                }
+                        }
+                } else {
+	       int pipes[2];
         pipe(pipes);
 
         if((pid=fork()) == -1) {
@@ -64,17 +88,20 @@ static int command(int input, int first, int last)
                 } else {
                         dup2( input, STDIN_FILENO );
                 }
-
+		
+		
+		/*	
 		for(int i = 0; i < 512; i++) {
 			if(args[i] != NULL) {
 				printf("args[%d] = %s\n", i, args[i]);
 			}
 		}
+		*/
 
                 execvp(args[0], args);
 		fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
 		exit(EX_DATAERR);
-        }
+		}
 
         if (input != 0)
                 close(input);
@@ -85,12 +112,23 @@ static int command(int input, int first, int last)
                 close(pipes[0]);
 
         return pipes[0];
+	}
 }
 
 int 
 main(int argc, char** argv) {
 	if (signal(SIGINT, SIG_IGN) == SIG_ERR) {
 		fprintf(stderr, "signal error: %s\n", strerror(errno));
+		exit(1);
+	}
+
+	if(getcwd(shell_buf, 1024) == NULL) {
+        	fprintf(stderr, "getcwd error: %s\n", strerror(errno));
+		exit(1);
+	}
+
+    	if(setenv("SHELL", shell_buf, 1) == -1) {
+        	fprintf(stderr, "setenv error: %s\n", strerror(errno));
 		exit(1);
 	}
 
@@ -137,45 +175,41 @@ main(int argc, char** argv) {
 		}
 
 		if(is_x_on) {
-			printf("+%s", cmd);
+			fprintf(stderr, "+%s", cmd);
 		}
 
-		if(strcmp("echo $$\n", cmd) == 0) {
-			printf("%d\n", (int)getpid());
-			status = 0;
-			continue;
-		} else if(strcmp("echo $?\n", cmd) == 0) {
-			printf("%d\n", status);
-			status = 0;
-			continue;
-		} else {
-                	char* next = strchr(cmd, '|');
+                char* next = strchr(cmd, '|');
 
-                	while (next != NULL) {
-                        	*next = '\0';
-                        	input = run(cmd, input, first, 0);
+                while (next != NULL) {
+                	*next = '\0';
+			split(cmd);
+        		if (args[0] != NULL) {
+				if (strcmp(args[0], "exit") == 0)
+                        		exit(0);
+                		n += 1;
+                		input = command(input, first, 0);
+        		} else {
+				input = 0;
+			}
 
-                        	cmd = next + 1;
-                        	next = strchr(cmd, '|');
-                        	first = 0;
-                	}
-                	input = run(cmd, input, first, 1);
-                	for (int i = 0; i < n; ++i)
-                        	wait(NULL);
+                       	cmd = next + 1;
+                       	next = strchr(cmd, '|');
+                       	first = 0;
+               	}
+
+		split(cmd);
+        	if (args[0] != NULL) {
+			if (strcmp(args[0], "exit") == 0)
+                        	exit(0);
+			n += 1;
+               		input = command(input, first, 1);
+        	} else {
+			input = 0;
 		}
+
+               	for (int i = 0; i < n; ++i)
+                       	wait(NULL);
                 n = 0;
-        }
-        return 0;
-}
-
-static int run(char* cmd, int input, int first, int last)
-{
-        split(cmd);
-        if (args[0] != NULL) {
-                if (strcmp(args[0], "exit") == 0)
-                        exit(0);
-                n += 1;
-                return command(input, first, last);
         }
         return 0;
 }
