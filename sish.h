@@ -16,10 +16,3 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-
-char *
-getinput(char *buffer, size_t buflen);
-
-void
-sish_help();

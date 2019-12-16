@@ -10,17 +10,14 @@ Does my code follow the style guide?
 Does my code compile without warnings or errors on a
 NetBSD 8.x system?
 	- Yes, compiled with:  
-    'cc -ansi -g -Wall -Werror -Wextra -Wformat=2 -Wjump-misses-init -Wlogical-op -Wpedantic -Wshadow'.
-
+    'cc -ansi -g -Wall -Werror -Wextra'.
 
 Did I provide a Makefile?
   - Yes. 
 
-
 Did I provide a README to explain any problems or
 issues I encountered?
   - Yes.
-
 
 Did I check the return value of all function calls?
   - Yes. 

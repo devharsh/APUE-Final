@@ -14,8 +14,31 @@ sish implements a very simple command-line interpreter or shell. It is suitable 
 as a login shell. It only implements a very small subset of what would usually be expected of a Unix shell,
 and does explicitly not lend itself as a scripting language.
 
-## Tests passed
-//..
-
-## Tests failed
-//..
+## Tests
+localhost$ ./sish -c date
+Mon Dec 16 22:38:53 UTC 2019
+localhost$ ./sish -c ls
+Makefile  README.md checklist sish      sish.c    sish.h    sish.o
+localhost$ ./sish -x
+sish$ echo $$
++ echo $$
+2797
+sish$ echo $?
++ echo $?
+0
+sish$ pwd
++ pwd
+/home/dev/UNIX_programs/FINAL
+sish$ cd
++ cd
+sish$ pwd
++ pwd
+/home/dev
+sish$ ls
++ ls
+UNIX_programs
+sish$ echo $$ > 1.txt
++ echo $$
+sish$ cat < 1.txt
++ cat <
+2797
