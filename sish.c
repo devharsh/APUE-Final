@@ -65,70 +65,105 @@ void execute (char *cmd)
             args[argIndex++] = token;
         }
  
-	pid_t pid, status;
-	pid = fork ();
-
-    	if (pid < 0) {
-        	perror ("fork");
-        	return;
-    	} else if (pid > 0) {
-        	while (wait (&status) != pid) {
-            		continue;
+	if(is_x_on) {
+		if(args[0] != NULL) {
+			fprintf(stderr, "+ %s", args[0]);
+			if(args[1] != NULL) {
+				fprintf(stderr, " %s", args[1]);
+			}
+			fprintf(stderr, "\n"); 
 		}
-    	} else if (pid == 0) {
-        	int idx = 0,
-            		fd;
-        	while (args[idx]) {   
-            		if (*args[idx] == '>' && args[idx+1]) {
-                		if ((fd = open (args[idx+1], 
-                            		O_WRONLY | O_CREAT, 
-                            		S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
-                    			perror (args[idx+1]);
-                    			exit (EXIT_FAILURE);
-                		}
-                		dup2 (fd, 1);
-                		dup2 (fd, 2);
-                		close (fd);
-                		while (args[idx]) {
-                    			args[idx] = args[idx+2];
-                    			idx++; 
-                		}
-                		break;
-            		} else if (*args[idx] == '^' && args[idx+1]) {
-                		if ((fd = open (args[idx+1], 
-                            		O_WRONLY | O_APPEND, 
-                            		S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
-                    			perror (args[idx+1]);
-                    			exit (EXIT_FAILURE);
-                		}
-                		dup2 (fd, 1);
-                		dup2 (fd, 2);
-                		close (fd);
-                		while (args[idx]) {
-                    			args[idx] = args[idx+2];
-                    			idx++; 
-                		}
-                		break;
-			} else if (*args[idx] == '<' && args[idx+1]) {
-                		if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
-                    			perror (args[idx+1]);
-                    			exit (EXIT_FAILURE);
-                		}
-                		dup2 (fd, 0);
-                		close (fd);
-                		while (args[idx]) {
-                    			args[idx] = args[idx+2];
-                    			idx++; 
-                		}
-                		break;
-            		}
-            		idx++;
-        	}
-        	if (execvp (args[0], args) == -1) {
-            		perror ("execvp");
-        	}
-        	_exit (EXIT_FAILURE); 
-    	}                           
+	}
+ 
+	/* shell built-in calls */
+	if (strcmp(args[0], "exit") == 0) {
+		exit(0);
+      	} else if (strcmp(args[0], "cd") == 0) {
+       		if(args[1]==NULL) {
+       			if(chdir(getenv("HOME")) == -1) {
+         			fprintf(stderr, "getenv error: %s\n", strerror(errno));
+         			exit(1);
+         		}
+         	} else {
+         		if(chdir(args[1]) == -1) {
+                                fprintf(stderr, "chdir error: %s\n", strerror(errno));
+                                exit(1);
+                        }
+                }
+        } else {
+		pid_t pid, status;
+		pid = fork ();
+
+    		if (pid < 0) {
+        		perror ("fork");
+        		return;
+    		} else if (pid > 0) {
+        		while (wait (&status) != pid) {
+            			continue;
+			}
+    		} else if (pid == 0) {
+        		int idx = 0,
+            			fd;
+        		while (args[idx]) {   
+            			if (*args[idx] == '>' && args[idx+1]) {
+                			if ((fd = open (args[idx+1], 
+                            			O_WRONLY | O_CREAT, 
+                            			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
+                    				perror (args[idx+1]);
+                    				exit (EXIT_FAILURE);
+                			}
+                			dup2 (fd, 1);
+                			dup2 (fd, 2);
+                			close (fd);
+                			while (args[idx]) {
+                    				args[idx] = args[idx+2];
+                    				idx++; 
+                			}
+                			break;
+            			} else if (*args[idx] == '^' && args[idx+1]) {
+                			if ((fd = open (args[idx+1], 
+                            			O_WRONLY | O_APPEND, 
+                            			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
+                    				perror (args[idx+1]);
+                    				exit (EXIT_FAILURE);
+                			}
+                			dup2 (fd, 1);
+                			dup2 (fd, 2);
+                			close (fd);
+                			while (args[idx]) {
+                    				args[idx] = args[idx+2];
+                    				idx++; 
+                			}
+                			break;
+				} else if (*args[idx] == '<' && args[idx+1]) {
+                			if ((fd = open (args[idx+1], O_RDONLY)) == -1) {
+                    				perror (args[idx+1]);
+                    				exit (EXIT_FAILURE);
+                			}
+                			dup2 (fd, 0);
+                			close (fd);
+                			while (args[idx]) {
+                    				args[idx] = args[idx+2];
+                    				idx++; 
+                			}
+                			break;
+            			}
+            			idx++;
+        		}
+			if (strcmp(args[0], "echo") == 0) {
+                        	if(strcmp(args[1], "$$") == 0) {
+                                	printf("%d\n", (int)getpid());
+                        	} else if(strcmp(args[1], "$?") == 0) {
+                                	printf("%d\n", status);
+                        	} else {
+                                	printf("%s\n", args[1]);
+                        	}
+        		} else if (execvp (args[0], args) == -1) {
+            			perror ("execvp");
+        		}
+        		_exit (EXIT_FAILURE); 
+    		} 
+	}                          
 }
 
 static int command(int input, int first, int last)
@@ -147,57 +182,58 @@ static int command(int input, int first, int last)
 	if (strcmp(args[0], "exit") == 0) {
 		exit(0);
         } else if (strcmp(args[0], "echo") == 0) {
-                        if(strcmp(args[1], "$$") == 0) {
-                                printf("%d\n", (int)getpid());
-                        } else if(strcmp(args[1], "$?") == 0) {
-                                printf("%d\n", status);
-                        } else {
-                                printf("%s\n", args[1]);
-                        }
-                } else if (strcmp(args[0], "cd") == 0) {
-                        if(args[1]==NULL) {
-                                printf("%s\n", getenv("HOME"));
-                                if(chdir(getenv("HOME")) == -1) {
-                                        fprintf(stderr, "getenv error: %s\n", strerror(errno));
-                                        exit(1);
-                                }
-                        } else {
-                                if(chdir(args[1]) == -1) {
-                                        fprintf(stderr, "chdir error: %s\n", strerror(errno));
-                                        exit(1);
-                                }
-                        }
+               	if(strcmp(args[1], "$$") == 0) {
+			printf("%d\n", (int)getpid());
+		} else if(strcmp(args[1], "$?") == 0) {
+			printf("%d\n", status);
+		} else {
+			printf("%s\n", args[1]);
+		}
+	} else if (strcmp(args[0], "cd") == 0) {
+		if(args[1]==NULL) {
+			if(chdir(getenv("HOME")) == -1) {
+				fprintf(stderr, "getenv error: %s\n", strerror(errno));
+				exit(1);
+			}
                 } else {
-	       int pipes[2];
-        pipe(pipes);
-
-        if((pid=fork()) == -1) {
-                        fprintf(stderr, "shell: can't fork: %s\n", strerror(errno));
-                        exit(EX_DATAERR);
-        } else if (pid == 0) {
-                if (first == 1 && last == 0 && input == 0) {
-                        dup2(pipes[1], STDOUT_FILENO );
-                } else if (first == 0 && last == 0 && input != 0) {
-                        dup2(input, STDIN_FILENO);
-                        dup2(pipes[1], STDOUT_FILENO);
-                } else {
-                        dup2( input, STDIN_FILENO );
+                        if(chdir(args[1]) == -1) {
+                                fprintf(stderr, "chdir error: %s\n", strerror(errno));
+                                exit(1);
+                        }
                 }
+	} else {
+		int pipes[2];
+       		pipe(pipes);
+
+       		if((pid=fork()) == -1) {
+                       	fprintf(stderr, "shell: can't fork: %s\n", strerror(errno));
+                       	exit(EX_DATAERR);
+       		} else if (pid == 0) {
+               		if (first == 1 && last == 0 && input == 0) {
+                       		dup2(pipes[1], STDOUT_FILENO );
+               		} else if (first == 0 && last == 0 && input != 0) {
+                       		dup2(input, STDIN_FILENO);
+                       		dup2(pipes[1], STDOUT_FILENO);
+               		} else {
+                       		dup2( input, STDIN_FILENO );
+               		}
 		
-                execvp(args[0], args);
-		fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
-		exit(EX_DATAERR);
+               		execvp(args[0], args);
+			fprintf(stderr, "shell: couldn't exec %s\n", strerror(errno));
+			exit(EX_DATAERR);
 		}
 
-        if (input != 0)
-                close(input);
+       		if (input != 0) {
+               		close(input);
+		}
 
-        close(pipes[1]);
+       		close(pipes[1]);
 
-        if (last == 1)
-                close(pipes[0]);
+       		if (last == 1) {
+               		close(pipes[0]);
+		}
 
-        return pipes[0];
+       		return pipes[0];
 	}
 }
 
@@ -265,14 +301,16 @@ main(int argc, char** argv) {
 		char* write = strstr(cmd, ">");
 		char* append = strstr(cmd, ">>");
 
-		int j_second = 0;
-		for(int j=0; j<strlen(cmd); j++) {
-			if(j_second) {
-				cmd[j] = '^';
-				break;
-			} else if(cmd[j] == '>') {
-				cmd[j] = ' ';
-				j_second = 1;
+		if(append) {
+			int j_second = 0;
+			for(int j=0; j<strlen(cmd); j++) {
+				if(j_second) {
+					cmd[j] = '^';
+					break;
+				} else if(cmd[j] == '>') {
+					cmd[j] = ' ';
+					j_second = 1;
+				}
 			}
 		}
 
