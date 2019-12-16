@@ -36,6 +36,7 @@ int data = 0;
 int cnt = 0;
 int startp[2];
 int endp[2];
+int is_bg_proc = 0;
 
 void
 sish_help() {
@@ -51,7 +52,9 @@ static int command(int input, int first, int last)
 {
  
 	/* shell built-in calls */
-                if (strcmp(args[0], "echo") == 0) {
+	if (strcmp(args[0], "exit") == 0) {
+		exit(0);
+        } else if (strcmp(args[0], "echo") == 0) {
                         if(strcmp(args[1], "$$") == 0) {
                                 printf("%d\n", (int)getpid());
                         } else if(strcmp(args[1], "$?") == 0) {
@@ -184,8 +187,6 @@ main(int argc, char** argv) {
                 	*next = '\0';
 			split(cmd);
         		if (args[0] != NULL) {
-				if (strcmp(args[0], "exit") == 0)
-                        		exit(0);
                 		n += 1;
                 		input = command(input, first, 0);
         		} else {
@@ -199,16 +200,16 @@ main(int argc, char** argv) {
 
 		split(cmd);
         	if (args[0] != NULL) {
-			if (strcmp(args[0], "exit") == 0)
-                        	exit(0);
 			n += 1;
                		input = command(input, first, 1);
         	} else {
 			input = 0;
 		}
 
-               	for (int i = 0; i < n; ++i)
+               	if(!is_bg_proc) {
+		for (int i = 0; i < n; ++i)
                        	wait(NULL);
+		}
                 n = 0;
         }
         return 0;
@@ -239,7 +240,10 @@ static void split(char* cmd)
                 next[0] = '\0';
                 ++i;
         }
-
-        args[i] = NULL;
+        if('&' == args[i-1][strlen(args[i-1])-1]) {
+		is_bg_proc = 1;
+		args[i-1] = NULL;
+	}
+	args[i] = NULL;
 }
 
